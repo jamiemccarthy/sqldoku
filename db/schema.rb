@@ -11,13 +11,13 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20160613125707) do
+ActiveRecord::Schema.define(version: 20160613130410) do
 
   create_table "puzzles", force: :cascade, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8" do |t|
-    t.string   "uuid"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.boolean  "solved"
+    t.string   "uuid",                       null: false
+    t.datetime "created_at",                 null: false
+    t.datetime "updated_at",                 null: false
+    t.boolean  "solved",     default: false, null: false
     t.index ["uuid"], name: "index_puzzles_on_uuid", unique: true, using: :btree
   end
 
