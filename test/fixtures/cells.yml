@@ -1,0 +1,21 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  symbol: 1
+  col: 1
+  row: 1
+  blk: 1
+  possible: false
+  confirmed: false
+  source: 1
+  puzzle: one
+
+two:
+  symbol: 1
+  col: 1
+  row: 1
+  blk: 1
+  possible: false
+  confirmed: false
+  source: 1
+  puzzle: two

@@ -11,7 +11,21 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20160613130410) do
+ActiveRecord::Schema.define(version: 20160619115307) do
+
+  create_table "cells", force: :cascade, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8" do |t|
+    t.integer  "symbol"
+    t.integer  "col"
+    t.integer  "row"
+    t.integer  "blk"
+    t.boolean  "possible"
+    t.boolean  "confirmed"
+    t.integer  "source"
+    t.integer  "puzzle_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["puzzle_id"], name: "index_cells_on_puzzle_id", using: :btree
+  end
 
   create_table "puzzles", force: :cascade, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8" do |t|
     t.string   "uuid",                       null: false
@@ -21,4 +35,5 @@ ActiveRecord::Schema.define(version: 20160613130410) do
     t.index ["uuid"], name: "index_puzzles_on_uuid", unique: true, using: :btree
   end
 
+  add_foreign_key "cells", "puzzles"
 end
