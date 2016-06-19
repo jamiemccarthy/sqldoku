@@ -11,19 +11,21 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20160619115307) do
+ActiveRecord::Schema.define(version: 20160619120055) do
 
   create_table "cells", force: :cascade, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8" do |t|
-    t.integer  "symbol"
-    t.integer  "col"
-    t.integer  "row"
-    t.integer  "blk"
-    t.boolean  "possible"
-    t.boolean  "confirmed"
-    t.integer  "source"
-    t.integer  "puzzle_id"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.integer "symbol"
+    t.integer "col"
+    t.integer "row"
+    t.integer "blk"
+    t.boolean "possible",  default: true, null: false
+    t.boolean "confirmed"
+    t.integer "source"
+    t.integer "puzzle_id"
+    t.index ["puzzle_id", "blk", "symbol", "confirmed"], name: "index_cells_on_puzzle_id_and_blk_and_symbol_and_confirmed", unique: true, using: :btree
+    t.index ["puzzle_id", "col", "symbol", "confirmed"], name: "index_cells_on_puzzle_id_and_col_and_symbol_and_confirmed", unique: true, using: :btree
+    t.index ["puzzle_id", "row", "col", "symbol"], name: "index_cells_on_puzzle_id_and_row_and_col_and_symbol", unique: true, using: :btree
+    t.index ["puzzle_id", "row", "symbol", "confirmed"], name: "index_cells_on_puzzle_id_and_row_and_symbol_and_confirmed", unique: true, using: :btree
     t.index ["puzzle_id"], name: "index_cells_on_puzzle_id", using: :btree
   end
 
