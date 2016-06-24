@@ -1,5 +1,5 @@
 class Puzzle < ApplicationRecord
-  has_many :cells, :autosave => true
+  has_many :cells, :autosave => true, :dependent => :destroy
 
   after_initialize :ensure_uuid
   validates :uuid, :uniqueness => true
