@@ -11,21 +11,15 @@ class Puzzle < ApplicationRecord
   validates :root, :numericality => { :greater_than_or_equal_to => 2, :less_than_or_equal_to => 10 }
 
   def to_s
-    rows = []
-    (1..root**2).each do |row|
-      cols = []
-      (1..root**2).each do |col|
-        cols << (confirmed_symbol(col, row) || '.')
-      end
-      rows << cols.join("")
-    end
-    rows.join("\n")
+    rows = side.times.collect { [] }
+    cells.is_confirmed.each { |c| rows[c.row-1][c.col-1] = c.symbol }
+    uuid + "\n" + rows.map { |row| row.fill(nil, row.size, side-row.size).map { |c| c || '.' }.join(" ") }.join("\n")
   end
 
   def build_cells
-    (1..root**2).each do |row|
-      (1..root**2).each do |col|
-        (1..root**2).each do |symbol|
+    (1..side).each do |row|
+      (1..side).each do |col|
+        (1..side).each do |symbol|
           cells.build(:symbol => symbol, :col => col, :row => row, :blk => calculate_blk(col, row))
         end
       end
@@ -45,6 +39,12 @@ class Puzzle < ApplicationRecord
     cells.in_col(col).in_row(row).is_confirmed.first.try(:symbol)
   end
 
+  def side
+    root**2
+  end
+
+  protected
+
   # This method encapsulates the logic at the heart of sudoku, which is that
   # defining a symbol locks down other symbols in four ways:
   #   * no other symbol is possible in that cell;
@@ -58,8 +58,6 @@ class Puzzle < ApplicationRecord
       cells.with_symbol(symbol).in_blk(blk).where.not(:col => col, :row => row)
     ]
   end
-
-  protected
 
   def ensure_uuid
     self.uuid ||= SecureRandom.uuid
