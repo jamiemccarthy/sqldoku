@@ -10,6 +10,18 @@ class Puzzle < ApplicationRecord
   # root**6 total possibilities.
   validates :root, :numericality => { :greater_than_or_equal_to => 2, :less_than_or_equal_to => 10 }
 
+  def to_s
+    rows = []
+    (1..root**2).each do |row|
+      cols = []
+      (1..root**2).each do |col|
+        cols << (confirmed_symbol(col, row) || '.')
+      end
+      rows << cols.join("")
+    end
+    rows.join("\n")
+  end
+
   def build_cells
     (1..root**2).each do |row|
       (1..root**2).each do |col|
@@ -27,6 +39,10 @@ class Puzzle < ApplicationRecord
       surrounding_scopes(col, row, symbol).each { |skope| bulk_impossible!(skope) }
       cells.with_symbol(symbol).in_col(col).in_row(row).each { |c| c.confirmed! }
     end
+  end
+
+  def confirmed_symbol(col, row)
+    cells.in_col(col).in_row(row).is_confirmed.first.try(:symbol)
   end
 
   # This method encapsulates the logic at the heart of sudoku, which is that
