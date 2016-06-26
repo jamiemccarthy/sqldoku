@@ -22,8 +22,15 @@ class Puzzle < ApplicationRecord
   end
 
   def to_heatmap
-    heatmap = cells.is_possible.group(:col, :row).count
+    heatmap = cells.is_possible.group(:row, :col).count
     format_as_text { |rows| heatmap.each_key { |k| row, col = k; rows[row-1][col-1] = heatmap[k] } }
+  end
+
+  def solve_one!
+    col, row = cells.is_possible_but_unconfirmed.group(:col, :row).having('count_all = 1').count.first.try(:first)
+    return nil unless col && row
+    symbol = cells.is_possible.in_col(col).in_row(row).first.symbol
+    set!(col, row, symbol)
   end
 
   def ensure_cells_built!

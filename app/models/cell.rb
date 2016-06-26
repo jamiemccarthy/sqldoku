@@ -7,6 +7,7 @@ class Cell < ApplicationRecord
   scope :in_blk, ->(b) { where(:blk => b) }
   scope :is_possible, -> { where(:possible => 1) }
   scope :is_confirmed, -> { where(:confirmed => 1) }
+  scope :is_possible_but_unconfirmed, -> { where(:possible => 1, :confirmed => nil) }
   scope :natural_order, -> { order(:col => :asc, :row => :asc, :symbol => :asc) }
 
   def impossible!
