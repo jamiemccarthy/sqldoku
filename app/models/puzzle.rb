@@ -26,18 +26,6 @@ class Puzzle < ApplicationRecord
     format_as_text { |rows| heatmap.each_key { |k| row, col = k; rows[row-1][col-1] = heatmap[k] } }
   end
 
-  def format_as_text
-    rows = side.times.collect { [] }
-    yield(rows)
-    width = rows.flatten.compact.max.to_s.length || 1
-    uuid + "\n" +
-      rows.map do |row|
-        row.fill(nil, row.size, side-row.size).map do |c|
-          sprintf("%#{width}s", c || '.' )
-        end.join(" ")
-      end.join("\n")
-  end
-
   def ensure_cells_built!
     # The logic of this class depends on the data being in a SQL database.
     build_cells unless self.cells_built
@@ -91,6 +79,18 @@ class Puzzle < ApplicationRecord
       cells.with_symbol(symbol).in_col(col).where.not(:row => row),
       cells.with_symbol(symbol).in_blk(blk).where.not(:col => col, :row => row)
     ]
+  end
+
+  def format_as_text
+    rows = side.times.collect { [] }
+    yield(rows)
+    width = rows.flatten.compact.max.to_s.length || 1
+    uuid + "\n" +
+      rows.map do |row|
+        row.fill(nil, row.size, side-row.size).map do |c|
+          sprintf("%#{width}s", c || '.' )
+        end.join(" ")
+      end.join("\n")
   end
 
   def ensure_uuid
