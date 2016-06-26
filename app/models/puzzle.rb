@@ -4,6 +4,8 @@ class SymbolIncompatibility < StandardError
 end
 
 class Puzzle < ApplicationRecord
+  # TODO dependent => destroy does individual DELETEs; surely there's some
+  # option that nukes based on the FK?
   has_many :cells, :autosave => true, :dependent => :destroy
 
   after_initialize :ensure_uuid
