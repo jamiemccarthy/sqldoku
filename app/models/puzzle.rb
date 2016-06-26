@@ -18,12 +18,33 @@ class Puzzle < ApplicationRecord
   validates :root, :numericality => { :greater_than_or_equal_to => 2, :less_than_or_equal_to => 10 }
 
   def to_s
+    format_as_text { |rows| cells.is_confirmed.each { |c| rows[c.row-1][c.col-1] = c.symbol } }
+  end
+
+  def to_heatmap
+    heatmap = cells.is_possible.group(:col, :row).count
+    format_as_text { |rows| heatmap.each_key { |k| row, col = k; rows[row-1][col-1] = heatmap[k] } }
+  end
+
+  def format_as_text
     rows = side.times.collect { [] }
-    cells.is_confirmed.each { |c| rows[c.row-1][c.col-1] = c.symbol }
-    uuid + "\n" + rows.map { |row| row.fill(nil, row.size, side-row.size).map { |c| c || '.' }.join(" ") }.join("\n")
+    yield(rows)
+    width = rows.flatten.compact.max.to_s.length || 1
+    uuid + "\n" +
+      rows.map do |row|
+        row.fill(nil, row.size, side-row.size).map do |c|
+          sprintf("%#{width}s", c || '.' )
+        end.join(" ")
+      end.join("\n")
+  end
+
+  def ensure_cells_built!
+    # The logic of this class depends on the data being in a SQL database.
+    build_cells unless self.cells_built
   end
 
   def build_cells
+    return if self.cells_built
     (1..side).each do |row|
       (1..side).each do |col|
         (1..side).each do |symbol|
@@ -31,10 +52,13 @@ class Puzzle < ApplicationRecord
         end
       end
     end
+    self.cells_built = true
+    save!
     cells.size
   end
 
   def set!(col, row, symbol)
+    ensure_cells_built!
     blk = calculate_blk(col, row)
     Puzzle.transaction do
       # It may be more efficient to use the scopes to build a list of IDs,
@@ -45,6 +69,7 @@ class Puzzle < ApplicationRecord
   end
 
   def confirmed_symbol(col, row)
+    ensure_cells_built!
     cells.in_col(col).in_row(row).is_confirmed.first.try(:symbol)
   end
 
@@ -77,6 +102,7 @@ class Puzzle < ApplicationRecord
   end
 
   def bulk_impossible!(skope)
+    ensure_cells_built!
     # We're bulk-setting these cells to "impossible," which means none of them
     # can be "confirmed." As an alternative, we could individually invoke
     # ".each { |cell| cell.impossible! }", which would raise the same error,
