@@ -10,12 +10,16 @@ class Cell < ApplicationRecord
   scope :natural_order, -> { order(:col => :asc, :row => :asc, :symbol => :asc) }
 
   def impossible!
-    raise ArgumentError if confirmed
+    # This check must be performed in Ruby, because there's no database integrity
+    # check (and I think no good way to design such a check in MySQL) that
+    # would prevent an already-confirmed symbol from being set to impossible.
+    raise SymbolIncompatibility if confirmed
     update(:possible => 0)
   end
 
   def confirmed!
-    raise ArgumentError unless possible
+    # This check must also be performed in Ruby, for basically the same reason.
+    raise SymbolIncompatibility unless possible
     update(:confirmed => 1)
   end
 end

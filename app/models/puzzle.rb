@@ -1,3 +1,8 @@
+class SymbolIncompatibility < StandardError
+  # TODO: an attr could provide info on whether row/col/blk/symbol caused error,
+  # or even the source
+end
+
 class Puzzle < ApplicationRecord
   has_many :cells, :autosave => true, :dependent => :destroy
 
@@ -30,6 +35,8 @@ class Puzzle < ApplicationRecord
   def set!(col, row, symbol)
     blk = calculate_blk(col, row)
     Puzzle.transaction do
+      # It may be more efficient to use the scopes to build a list of IDs,
+      # then check-and-set that list.
       surrounding_scopes(col, row, symbol).each { |skope| bulk_impossible!(skope) }
       cells.with_symbol(symbol).in_col(col).in_row(row).each { |c| c.confirmed! }
     end
@@ -72,7 +79,7 @@ class Puzzle < ApplicationRecord
     # can be "confirmed." As an alternative, we could individually invoke
     # ".each { |cell| cell.impossible! }", which would raise the same error,
     # but this is slower than checking them all at once.
-    raise ArgumentError unless skope.is_confirmed.count == 0
+    raise SymbolIncompatibility unless skope.is_confirmed.count == 0
     skope.update_all(:possible => 0)
   end
 end
