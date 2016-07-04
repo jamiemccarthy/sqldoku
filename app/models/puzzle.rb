@@ -3,6 +3,10 @@ class SymbolIncompatibility < StandardError
   # or even the source
 end
 
+class PuzzleUnsolvable < StandardError
+  # Used internally when making guesses.
+end
+
 class Puzzle < ApplicationRecord
   # TODO dependent => destroy does individual DELETEs; surely there's some
   # option that nukes based on the FK?
@@ -22,15 +26,80 @@ class Puzzle < ApplicationRecord
   end
 
   def to_heatmap
-    heatmap = cells.is_possible.group(:row, :col).count
-    format_as_text { |rows| heatmap.each_key { |k| row, col = k; rows[row-1][col-1] = heatmap[k] } }
+    heatmap = cells.is_possible_but_unconfirmed.group(:row, :col).count
+    format_as_text { |rows| heatmap.each_key { |k| row, col = k; rows[row-1][col-1] = heatmap[k] > 0 ? heatmap[k] : '.' } }
+  end
+
+  def solve!(max_depth: 1, indent: "")
+    return self if solved
+    # Find list of locations that haven't yet been solved, in a rough order
+    # of how "easy" it seems to solve them.
+    possibilities = cells.is_possible_but_unconfirmed.
+      group(:col, :row).
+      order('count_all ASC, row ASC, col ASC').count
+    # If there aren't any, the puzzle is already solved.
+    return self if possibilities.blank?
+    # If we still have work to do, but we've run out of depth, quit.
+    puts "ran out of depth" if max_depth <= 0
+    raise PuzzleUnsolvable if max_depth <= 0
+    # For each location in the list, set a SAVEPOINT, make a guess at its symbol,
+    # and recursively try to solve the resulting puzzle. If that fails (can it?)
+    # and we still have more guesses, try them too. If we run out of guesses, quit.
+    puts indent + "Trying to solve this..."
+    puts to_s.gsub(/^/, indent)
+    puts to_heatmap.gsub(/^/, indent)
+    possibilities.keys.each do |location|
+      col, row = location
+      puts indent + "Looking at #{col},#{row}..."
+      possible_symbols = cells.is_possible.in_col(col).in_row(row).pluck(:symbol)
+      possible_symbols.each do |symbol|
+        puts indent + "Trying #{symbol} at #{col},#{row}..."
+        Puzzle.transaction(requires_new: true) do
+          begin
+            set!(col, row, symbol)
+            # If solve! returns, it's solved the puzzle.
+            return solve!(max_depth: max_depth - 1, indent: indent + "   ")
+          rescue SymbolIncompatibility
+            puts indent + "SymbolIncompatibility... that's unexpected... bug maybe?"
+            puts indent + "Raising Rollback."
+            raise ActiveRecord::Rollback
+          rescue PuzzleUnsolvable
+            puts indent + "Okay, that didn't work: it resulted in:"
+            puts to_s.gsub(/^/, indent)
+            puts to_heatmap.gsub(/^/, indent)
+            puts indent + "Raising Rollback."
+            raise ActiveRecord::Rollback
+          end
+        end
+      end
+    end
+    puts indent + "Can't find a solution, PuzzleUnsolvable in the depth requested..."
+    raise PuzzleUnsolvable
   end
 
   def solve_one!
+    return self if solved
+    col, row, symbol = nil
+    # If there's any location where only one symbol is possible, set it.
     col, row = cells.is_possible_but_unconfirmed.group(:col, :row).having('count_all = 1').count.first.try(:first)
-    return nil unless col && row
-    symbol = cells.is_possible.in_col(col).in_row(row).first.symbol
-    set!(col, row, symbol)
+    if col && row
+      symbol = cells.is_possible.in_col(col).in_row(row).first.symbol
+    else
+      # If there's any symbol whose confirmed + possible count add up
+      # to exactly "side," then all remaining possible must be true
+      symbol_confirmed = cells.is_possible.group(:symbol, :confirmed).count
+      (1..side).each do |sym|
+        unconfirmed_count = symbol_confirmed[[sym, nil]]
+        confirmed_count = symbol_confirmed[[sym, true]]
+        if unconfirmed_count.present? && confirmed_count.present? &&
+          unconfirmed_count > 0 && unconfirmed_count+confirmed_count == side
+          cell = cells.is_possible_but_unconfirmed.with_symbol(sym).first
+          col, row, symbol = cell.col, cell.row, sym
+          break
+        end
+      end
+    end
+    raw_single_set!(col, row, symbol) if col && row && symbol
   end
 
   def ensure_cells_built!
@@ -53,14 +122,8 @@ class Puzzle < ApplicationRecord
   end
 
   def set!(col, row, symbol)
-    ensure_cells_built!
-    blk = calculate_blk(col, row)
-    Puzzle.transaction do
-      # It may be more efficient to use the scopes to build a list of IDs,
-      # then check-and-set that list.
-      surrounding_scopes(col, row, symbol).each { |skope| bulk_impossible!(skope) }
-      cells.with_symbol(symbol).in_col(col).in_row(row).each { |c| c.confirmed! }
-    end
+    raw_single_set!(col, row, symbol)
+    1 while solve_one!
   end
 
   def confirmed_symbol(col, row)
@@ -73,6 +136,18 @@ class Puzzle < ApplicationRecord
   end
 
   protected
+
+  def raw_single_set!(col, row, symbol)
+    ensure_cells_built!
+    blk = calculate_blk(col, row)
+    Puzzle.transaction do
+      # It may be more efficient to use the scopes to build a list of IDs,
+      # then check-and-set that list.
+      surrounding_scopes(col, row, symbol).each { |skope| bulk_impossible!(skope) }
+      cells.with_symbol(symbol).in_col(col).in_row(row).each { |c| c.confirmed! }
+    end
+    self
+  end
 
   # This method encapsulates the logic at the heart of sudoku, which is that
   # defining a symbol locks down other symbols in four ways:
