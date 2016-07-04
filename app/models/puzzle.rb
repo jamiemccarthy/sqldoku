@@ -40,7 +40,7 @@ class Puzzle < ApplicationRecord
     # If there aren't any, the puzzle is already solved.
     return self if possibilities.blank?
     # If we still have work to do, but we've run out of depth, quit.
-    puts "ran out of depth" if max_depth <= 0
+    puts indent + "ran out of depth" if max_depth <= 0
     raise PuzzleUnsolvable if max_depth <= 0
     # For each location in the list, set a SAVEPOINT, make a guess at its symbol,
     # and recursively try to solve the resulting puzzle. If that fails (can it?)
@@ -84,6 +84,7 @@ class Puzzle < ApplicationRecord
     col, row = cells.is_possible_but_unconfirmed.group(:col, :row).having('count_all = 1').count.first.try(:first)
     if col && row
       symbol = cells.is_possible.in_col(col).in_row(row).first.symbol
+      puts "Setting #{symbol} at #{col},#{row} because no other symbol possible"
     else
       # If there's any symbol whose confirmed + possible count add up
       # to exactly "side," then all remaining possible must be true
@@ -95,6 +96,7 @@ class Puzzle < ApplicationRecord
           unconfirmed_count > 0 && unconfirmed_count+confirmed_count == side
           cell = cells.is_possible_but_unconfirmed.with_symbol(sym).first
           col, row, symbol = cell.col, cell.row, sym
+          puts "Setting #{symbol} at #{col},#{row} because it has to go in the remaining #{unconfirmed_count} locations"
           break
         end
       end
@@ -144,6 +146,7 @@ class Puzzle < ApplicationRecord
       # It may be more efficient to use the scopes to build a list of IDs,
       # then check-and-set that list.
       surrounding_scopes(col, row, symbol).each { |skope| bulk_impossible!(skope) }
+      busted_scopes(col, row).each { |skope| raise PuzzleUnsolvable if skope.count.present? }
       cells.with_symbol(symbol).in_col(col).in_row(row).each { |c| c.confirmed! }
     end
     self
@@ -160,6 +163,24 @@ class Puzzle < ApplicationRecord
       cells.with_symbol(symbol).in_row(row).where.not(:col => col),
       cells.with_symbol(symbol).in_col(col).where.not(:row => row),
       cells.with_symbol(symbol).in_blk(blk).where.not(:col => col, :row => row)
+    ]
+  end
+
+  # This method provides the scopes which must always be empty. If any
+  # reveal there are no possibilities, that scope is "busted" and
+  # the puzzle is not solvable.
+  # (For root=3 puzzles, it'd almost certainly be more efficient to do this
+  # across the whole puzzle at once, but as root increases, targeted checks
+  # would become more efficient.)
+  def busted_scopes(col, row)
+    blk = calculate_blk(col, row)
+    puts "checking busted_scopes for #{col},#{row}"
+    [
+      cells.is_impossible.in_col(col).group(:symbol).having('count_all = ?', side),
+      cells.is_impossible.in_col(col).group(:row   ).having('count_all = ?', side),
+      cells.is_impossible.in_row(row).group(:symbol).having('count_all = ?', side),
+      cells.is_impossible.in_row(row).group(:col   ).having('count_all = ?', side),
+      cells.is_impossible.in_blk(blk).group(:symbol).having('count_all = ?', side),
     ]
   end
 

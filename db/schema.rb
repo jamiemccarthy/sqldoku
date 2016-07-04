@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20160704140408) do
+ActiveRecord::Schema.define(version: 20160704190617) do
 
   create_table "cells", force: :cascade, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8" do |t|
     t.integer "symbol"
@@ -22,13 +22,18 @@ ActiveRecord::Schema.define(version: 20160704140408) do
     t.boolean "confirmed"
     t.integer "source"
     t.integer "puzzle_id"
+    t.index ["puzzle_id", "blk", "possible", "symbol"], name: "index_cells_on_puzzle_id_blk_possible_symbol", using: :btree
     t.index ["puzzle_id", "blk", "symbol", "confirmed"], name: "index_cells_on_puzzle_id_and_blk_and_symbol_and_confirmed", unique: true, using: :btree
+    t.index ["puzzle_id", "col", "possible", "row"], name: "index_cells_on_puzzle_id_col_possible_row", using: :btree
+    t.index ["puzzle_id", "col", "possible", "symbol"], name: "index_cells_on_puzzle_id_col_possible_symbol", using: :btree
     t.index ["puzzle_id", "col", "row", "confirmed"], name: "index_cells_on_puzzle_id_and_col_and_row_and_confirmed", unique: true, using: :btree
     t.index ["puzzle_id", "col", "symbol", "confirmed"], name: "index_cells_on_puzzle_id_and_col_and_symbol_and_confirmed", unique: true, using: :btree
     t.index ["puzzle_id", "confirmed"], name: "index_cells_on_puzzle_id_and_confirmed", using: :btree
     t.index ["puzzle_id", "possible", "confirmed", "col", "row"], name: "index_cells_on_puzzle_id_possible_confirmed_col_row", using: :btree
     t.index ["puzzle_id", "possible", "symbol", "confirmed"], name: "index_cells_on_puzzle_id_possible_symbol_confirmed", using: :btree
     t.index ["puzzle_id", "row", "col", "symbol"], name: "index_cells_on_puzzle_id_and_row_and_col_and_symbol", unique: true, using: :btree
+    t.index ["puzzle_id", "row", "possible", "col"], name: "index_cells_on_puzzle_id_row_possible_col", using: :btree
+    t.index ["puzzle_id", "row", "possible", "symbol"], name: "index_cells_on_puzzle_id_row_possible_symbol", using: :btree
     t.index ["puzzle_id", "row", "symbol", "confirmed"], name: "index_cells_on_puzzle_id_and_row_and_symbol_and_confirmed", unique: true, using: :btree
     t.index ["puzzle_id"], name: "index_cells_on_puzzle_id", using: :btree
   end
